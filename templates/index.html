@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=auto, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>App Test</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+    {% block content %}
+
+
+    <center>
+        <h1 style="background-color: burlywood;">PDF Text Extraction API</h1>
+        <p>This API will give Extraction of PDF text into text file.</p>
+
+        Please choose a pdf file:
+        <form action="https://fathomless-harbor-52615.herokuapp.com/uploader" method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" id="file" />
+            <input type="submit" class="btn btn-info" />
+        </form>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <p class=flashes style="color: red;">
+            {% for message in messages %}
+            {{ message }}
+            {% endfor %}
+        </p>
+        {% endif %}
+        {% endwith %}
+       
+            <a href="https://fathomless-harbor-52615.herokuapp.com/convert/"><button type="button">Convert</button></a>
+        
+    </center>
+    {% endblock %}
+</body>
+
+</html>
