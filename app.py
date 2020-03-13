@@ -1,9 +1,8 @@
 import os
-#import magic
+from flask import send_file
 import re
 import urllib.request
-from dir_addr import app
-from flask import Flask, flash, request, redirect, render_template,url_for
+from flask import Flask, flash, request, redirect, render_template,url_for,send_from_directory
 from werkzeug.utils import secure_filename
 from pdfminer.pdfinterp import PDFResourceManager#, PDFPage.get_pages()
 from pdfminer.converter import TextConverter
@@ -11,25 +10,40 @@ from io import StringIO
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter#process_pdf
 from pdfminer.pdfpage import PDFPage
 from pdfminer.layout import LAParams
-import os
-#import converter
-import csv
-import io
+import pathlib,os
 
+# done = False
+# #here is the animation
+# def animate():
+#     for c in itertools.cycle(['|', '/', '-', '\\']):
+#         if done:
+#             break
+#         sys.stdout.write('\rloading ' + c)
+#         sys.stdout.flush()
+#         time.sleep(0.1)
+#     sys.stdout.write('\rDone!     ')
 
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+# t = threading.Thread(target=animate)
+# t.start()
 
-download_Dir=[]
-filename1=[]
+# #long process here
+# time.sleep(10)
+# done = True
+app = Flask(__name__)
+
+UPLOAD_FOLDER = '/tmp'
+DOWNLOAD_FOLDER = '/tmp'
+app.secret_key = "1234"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+ALLOWED_EXTENSIONS = set(['pdf'])
+
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 	
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-	return render_template('index.html')
-
-@app.route('/uploader', methods=['POST'])
-def upload_file():
 	if request.method == 'POST':
         # check if the post request has the file part
 		if 'file' not in request.files:
@@ -42,48 +56,44 @@ def upload_file():
 		elif file and allowed_file(file.filename):
 			filename = secure_filename(file.filename)
 			file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-			flash(filename)
-			filename1.append(filename)
-			flash('File successfully uploaded')
-			value = os.path.join('/tmp', filename)
-			#return('done')
-			download_Dir.append(value)
-			#print(value1)
-			return redirect(url_for('index'))
+
+			#convert function pdf to text
+			rsrcmgr = PDFResourceManager()
+			retstr = StringIO()
+			laparams = LAParams()
+			device = TextConverter(rsrcmgr, retstr, laparams=laparams)
+			pdf_file = "/tmp/" + filename
+			fp = open(pdf_file, 'rb')
+			interpreter = PDFPageInterpreter(rsrcmgr, device)
+			password = ""
+			maxpages = 0
+			caching = True
+			pagenos=set()
+			for page in PDFPage.get_pages(fp, pagenos, maxpages=maxpages, password=password,caching=caching, check_extractable=True):
+				interpreter.process_page(page)
+			fp.close()
+			device.close()
+			string = retstr.getvalue()
+			retstr.close()
+
+			text_file_path = filename+".txt"
+			with open("/tmp/"+text_file_path,'w+') as f:
+				f.write(str(string))
+			#file.save(os.path.join(app.config['DOWNLOAD_FOLDER'], text_file_path))
+			# Cleanup
+			#display file
+			#flash(filename)
+			#animate()
+			#flash('File successfully Converted')
+			#flash(text)
+			return redirect(url_for('uploaded_file', filename=text_file_path))
 		else:
-			flash('Allowed file types are txt, pdf, png, jpg, jpeg, gif')
+			flash('Allowed file types is pdf')
 			return redirect(url_for('index'))
+	return render_template('index.html')
+@app.route('/tmp/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['DOWNLOAD_FOLDER'], filename, as_attachment=True)			
 
-#path=os.path.join(app.config['UPLOAD_FOLDER'], 'ANKIT_SINGH_TECH_INTERN.pdf')
-@app.route('/convert/')
-def convert():#pdfname para
-		# PDFMiner boilerplate
-		rsrcmgr = PDFResourceManager()
-		sio = StringIO()
-		laparams = LAParams()
-		device = TextConverter(rsrcmgr, sio,  laparams=laparams)
-		interpreter = PDFPageInterpreter(rsrcmgr, device)
-
-		# Extract text
-		#fp = open('/home/greeneye/Documents/upload/ANKIT_SINGH_TECH_INTERN.pdf', 'rb')
-		pdf_file = "/tmp/" + filename1[0]
-		fp = open(pdf_file,'rb')
-		for page in PDFPage.get_pages(fp):
-			interpreter.process_page(page)
-		fp.close()
-
-		# Get text from StringIO
-		text = sio.getvalue().encode("ascii", "ignore")
-		text_file_name = "/tmp/downoad.txt"
-		with open(text_file_name,'w') as f:
-			f.write(str(text))
-			
-		# Cleanup
-		device.close()
-		sio.close()
-		flash(text)
-		os.unlink('/tmp')
-		return redirect(url_for('index'))
-			
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
